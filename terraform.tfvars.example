@@ -1,0 +1,30 @@
+# Example Terraform Variables File
+# Copy this to environments/{environment}/terraform.tfvars and fill in your actual values
+# DO NOT commit actual terraform.tfvars with sensitive data
+
+# Environment Configuration
+environment             = "dev"
+project_name            = "saybaba-infrastructure"
+
+# AWS Configuration
+aws_region              = "us-east-1"
+aws_instance_count      = 2
+aws_instance_type       = "t2.micro"
+aws_vpc_cidr            = "10.0.0.0/16"
+aws_enable_nat_gateway  = false
+
+# Database Configuration (SENSITIVE - use environment variables or AWS Secrets Manager)
+# db_password will be prompted during terraform apply
+# Or set via environment: export TF_VAR_db_password="your-password"
+
+# Azure Configuration (if using multi-cloud later)
+# azure_subscription_id    = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Tags
+tags = {
+  Owner       = "Cloud Team"
+  Environment = "dev"
+  CostCenter  = "Engineering"
+  Compliance  = "SOC2"
+  CreatedBy   = "Terraform"
+}
