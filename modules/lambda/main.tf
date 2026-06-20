@@ -58,8 +58,8 @@ resource "aws_lambda_function" "health_check" {
   filename      = "lambda_function.zip"
   function_name = "${var.project_name}-health-check"
   role          = aws_iam_role.lambda_role.arn
-  handler       = "index.handler"
-  runtime       = "nodejs.18.x"
+  handler       = "lambda_function.handler"
+  runtime       = "nodejs18.x"
   timeout       = 10
 
   source_code_hash = filebase64sha256("lambda_function.zip")
@@ -68,6 +68,7 @@ resource "aws_lambda_function" "health_check" {
     variables = {
       PROJECT_NAME = var.project_name
       ENVIRONMENT  = var.environment
+      TABLE_NAME   = "saybaba-infrastructure-table"
     }
   }
 

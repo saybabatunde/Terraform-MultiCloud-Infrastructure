@@ -1,78 +1,49 @@
-# Main Terraform Configuration - Multi-Cloud Infrastructure
-# Deploys AWS infrastructure with networking, compute, database, and load balancing
+# Serverless Main Configuration
+# Uses Lambda, DynamoDB, and API Gateway instead of EC2/RDS/ALB
 
-# AWS Networking Module
-module "aws_networking" {
+# Networking Module (for VPC if needed for Lambda VPC configuration)
+module "networking" {
   source = "./modules/networking"
 
   project_name         = var.project_name
   vpc_cidr             = var.aws_vpc_cidr
-  enable_nat_gateway   = var.aws_enable_nat_gateway
-  allowed_ssh_cidrs    = ["0.0.0.0/0"] # Restrict in production
+  enable_nat_gateway   = false  # Not needed for serverless
+  allowed_ssh_cidrs    = []
 
-  tags = merge(
-    var.tags,
-    {
-      Region = var.aws_region
-    }
-  )
+  tags = var.tags
 }
 
-# AWS Compute Module (EC2 Instances)
-module "aws_compute" {
-  source = "./modules/compute"
+# DynamoDB Module (Serverless Database)
+module "database" {
+  source = "./modules/dynamodb"
 
-  project_name      = var.project_name
-  instance_count    = var.aws_instance_count
-  instance_type     = var.aws_instance_type
-  subnet_ids        = module.aws_networking.public_subnet_ids
-  security_group_id = module.aws_networking.web_security_group_id
-  associate_public_ip = true
+  project_name = var.project_name
+
+  tags = var.tags
+}
+
+# Lambda Module (Serverless Functions)
+module "functions" {
+  source = "./modules/lambda"
+
+  project_name         = var.project_name
+  environment          = var.environment
+  dynamodb_table_arn   = module.database.table_arn
 
   tags = var.tags
 
-  depends_on = [module.aws_networking]
+  depends_on = [module.database]
 }
 
-# AWS Database Module (RDS)
-module "aws_database" {
-  source = "./modules/database"
+# API Gateway Module
+module "api" {
+  source = "./modules/api"
 
-  project_name       = var.project_name
-  engine             = var.db_engine
-  engine_version     = "15.3"
-  instance_class     = var.db_instance_class
-  allocated_storage  = var.db_allocated_storage
-  master_username    = var.db_username
-  master_password    = var.db_password
-  multi_az           = var.environment == "prod" ? true : false
-  backup_retention_period = var.environment == "prod" ? 30 : 7
-
-  private_subnet_ids = module.aws_networking.private_subnet_ids
-  security_group_id  = module.aws_networking.database_security_group_id
+  project_name            = var.project_name
+  environment             = var.environment
+  lambda_health_check_arn = module.functions.lambda_function_arn
 
   tags = var.tags
 
-  depends_on = [module.aws_networking]
-}
-
-# AWS Load Balancer Module
-module "aws_load_balancer" {
-  source = "./modules/load_balancer"
-
-  project_name       = var.project_name
-  vpc_id             = module.aws_networking.vpc_id
-  public_subnet_ids  = module.aws_networking.public_subnet_ids
-  private_subnet_ids = module.aws_networking.private_subnet_ids
-  instance_ids       = module.aws_compute.instance_ids
-  security_group_id  = module.aws_networking.web_security_group_id
-  launch_template_id = module.aws_compute.launch_template_id
-
-  min_size         = var.environment == "prod" ? 2 : 1
-  max_size         = var.environment == "prod" ? 10 : 3
-  desired_capacity = var.environment == "prod" ? 3 : var.aws_instance_count
-
-  tags = var.tags
-
-  depends_on = [module.aws_compute, module.aws_networking]
+  depends_on = [module.functions]
 }

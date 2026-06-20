@@ -46,20 +46,32 @@ resource "aws_cloudwatch_log_group" "api_logs" {
   tags = var.tags
 }
 
-# Health Check Integration (no Lambda needed)
+# Health Check Integration
 resource "aws_apigatewayv2_integration" "health_check" {
   api_id           = aws_apigatewayv2_api.main.id
   integration_type = "AWS_PROXY"
-  integration_method = "POST"
-
-  # Point to health check Lambda if needed
-  target = var.lambda_health_check_arn
+  integration_uri  = var.lambda_health_check_arn
+  payload_format_version = "2.0"
 }
 
 # Health Check Route
 resource "aws_apigatewayv2_route" "health_check" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /health"
+  target    = "integrations/${aws_apigatewayv2_integration.health_check.id}"
+}
+
+# Create Item Route (POST /items)
+resource "aws_apigatewayv2_route" "create_item" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /items"
+  target    = "integrations/${aws_apigatewayv2_integration.health_check.id}"
+}
+
+# Get Item Route (GET /items/{id})
+resource "aws_apigatewayv2_route" "get_item" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /items/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.health_check.id}"
 }
 

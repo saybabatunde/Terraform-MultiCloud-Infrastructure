@@ -2,10 +2,10 @@
 
 # Main Application Table
 resource "aws_dynamodb_table" "main" {
-  name           = "${var.project_name}-table"
-  billing_mode   = "PAY_PER_REQUEST" # Serverless - pay only for what you use
-  hash_key       = "PK"
-  range_key      = "SK"
+  name             = "${var.project_name}-table"
+  billing_mode     = "PAY_PER_REQUEST"
+  hash_key         = "PK"
+  range_key        = "SK"
 
   attribute {
     name = "PK"
@@ -15,14 +15,6 @@ resource "aws_dynamodb_table" "main" {
   attribute {
     name = "SK"
     type = "S"
-  }
-
-  # Global Secondary Index for queries
-  global_secondary_index {
-    name            = "GSI1"
-    hash_key        = "GSI1PK"
-    range_key       = "GSI1SK"
-    projection_type = "ALL"
   }
 
   attribute {
@@ -35,23 +27,24 @@ resource "aws_dynamodb_table" "main" {
     type = "S"
   }
 
-  # Point in time recovery (automatic backups)
-  point_in_time_recovery_specification {
+  global_secondary_index {
+    name            = "GSI1"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
+  point_in_time_recovery {
     enabled = true
   }
 
-  # Server-side encryption
-  server_side_encryption_specification {
+  server_side_encryption {
     enabled = true
   }
 
   ttl {
     attribute_name = "ExpiresAt"
     enabled        = true
-  }
-
-  stream_specification {
-    stream_view_type = "NEW_AND_OLD_IMAGES"
   }
 
   tags = var.tags
