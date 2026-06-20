@@ -1,6 +1,14 @@
-// Simple API Gateway Lambda Handler
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+
+const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const dynamodb = DynamoDBDocumentClient.from(client);
+
+const TABLE_NAME = process.env.TABLE_NAME || 'saybaba-infrastructure-table';
+
 exports.handler = async (event) => {
   console.log('Event:', JSON.stringify(event, null, 2));
+  console.log('Table name:', TABLE_NAME);
 
   const routeKey = event.routeKey || '';
 
@@ -50,7 +58,7 @@ exports.handler = async (event) => {
   }
 };
 
-// POST /items - Create item
+// POST /items - Create item in DynamoDB
 const createItem = async (event) => {
   try {
     console.log('Creating item, event body:', event.body);
@@ -58,14 +66,22 @@ const createItem = async (event) => {
 
     const itemId = Date.now().toString();
     const item = {
+      PK: `ITEM#${itemId}`,
+      SK: itemId,
       id: itemId,
       name: body?.name || 'Unnamed Item',
       description: body?.description || '',
       CreatedAt: new Date().toISOString(),
     };
 
-    // TODO: Save to DynamoDB
-    console.log('Item created (not saved to DB yet):', item);
+    console.log('Saving item to DynamoDB:', item);
+
+    await dynamodb.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: item,
+    }));
+
+    console.log('Item saved successfully');
 
     return {
       statusCode: 201,
@@ -74,7 +90,6 @@ const createItem = async (event) => {
         message: 'Item created successfully',
         id: item.id,
         item: item,
-        note: 'Item stored in memory (database integration coming next)'
       }),
     };
   } catch (error) {
@@ -90,7 +105,7 @@ const createItem = async (event) => {
   }
 };
 
-// GET /items/{id} - Get item
+// GET /items/{id} - Get item from DynamoDB
 const getItem = async (event) => {
   try {
     const id = event.rawPath?.split('/').pop() || event.pathParameters?.id;
@@ -103,10 +118,12 @@ const getItem = async (event) => {
       };
     }
 
-    const result = await dynamodb.get({
-      TableName: process.env.TABLE_NAME,
-      Key: { PK: `ITEM#${id}` },
-    }).promise();
+    console.log('Getting item with id:', id);
+
+    const result = await dynamodb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `ITEM#${id}`, SK: id },
+    }));
 
     if (!result.Item) {
       return {
